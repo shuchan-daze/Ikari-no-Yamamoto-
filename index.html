@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>日報チェック by 怒りの山本 v2.51</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#111827;--muted:#6b7280;--main:#111827;--red:#ffe8e8;--blue:#e8f5ff;--yellow:#fff6d8;--green:#e8f8ef}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(244,245,247,.96);backdrop-filter:blur(10px);padding:16px 14px 10px}
+h1{font-size:21px;margin:0}.sub{font-size:13px;color:var(--muted);margin-top:4px}
+main{max-width:980px;margin:0 auto;padding:10px 12px 48px}
+.card{background:var(--card);border:1px solid #e5e7eb;border-radius:18px;padding:14px;margin:10px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fileInput{display:none!important}
+.action{display:block;width:100%;text-align:center;border:0;border-radius:14px;padding:16px 12px;font-size:17px;font-weight:800;color:#fff;background:var(--main);margin-top:8px}
+.action.gray{background:#e5e7eb;color:#111827}
+.status{margin-top:10px;padding:12px;border-radius:14px;border:1px solid #e5e7eb;background:#f9fafb;color:#374151;font-size:13px;white-space:pre-wrap}
+.status.ok{background:var(--green);font-weight:700}
+.status.warn{background:#fff7ed;font-weight:700}
+.previewGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.previewBox{background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:8px}
+.previewBox img{width:100%;max-height:260px;object-fit:contain;display:none;border-radius:10px}
+.previewTitle{font-size:13px;color:var(--muted);margin-bottom:6px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.box{background:var(--yellow);border:1px solid #facc15;border-radius:14px;padding:12px}
+.box small{display:block;color:var(--muted)}.box b{font-size:22px}
+.tableWrap{overflow-x:auto;border:1px solid #e5e7eb;border-radius:14px;background:#fff;margin-top:10px}
+table{width:100%;min-width:900px;border-collapse:collapse}
+th,td{border-bottom:1px solid #e5e7eb;padding:8px;font-size:14px;text-align:center}
+th{background:#f3f4f6}tr.diff{background:var(--red)}tr.reportOnly{background:var(--blue)}
+input.cell{width:100%;min-width:86px;text-align:right;padding:8px;font-size:16px;border:1px solid #d1d5db;border-radius:10px}
+input.memo{width:100%;min-width:150px;padding:8px;font-size:14px;border:1px solid #d1d5db;border-radius:10px}
+select{padding:8px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;background:#fff}
+.smallBtn{border:0;border-radius:10px;padding:8px 10px;background:#e5e7eb;font-weight:700}.deleteBtn{background:#fee2e2;color:#991b1b}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-weight:800;font-size:12px}.badge.ok{background:#e8f8ef;color:#047857}.badge.diff{background:#fee2e2;color:#b91c1c}.badge.extra{background:#dbeafe;color:#1d4ed8}
+</style>
+</head>
+<body>
+<header>
+<h1>日報チェック by 怒りの山本 v2.51</h1>
+<div class="sub">撮影と写真選択を分けた確認支援UI。</div>
+</header>
+
+<main>
+<section class="card">
+<div class="grid2">
+<label class="action" for="reportCam">📷 日報を撮影</label>
+<label class="action gray" for="reportLib">🖼 日報の写真を選択</label>
+</div>
+<div class="grid2">
+<label class="action" for="detailCam">📷 明細を撮影</label>
+<label class="action gray" for="detailLib">🖼 明細の写真を選択</label>
+</div>
+
+<input id="reportCam" class="fileInput" type="file" accept="image/*" capture="environment">
+<input id="reportLib" class="fileInput" type="file" accept="image/*">
+<input id="detailCam" class="fileInput" type="file" accept="image/*" capture="environment">
+<input id="detailLib" class="fileInput" type="file" accept="image/*">
+
+<div id="status" class="status">日報または明細を撮影、または写真を選択してください。</div>
+</section>
+
+<section class="card">
+<div class="previewGrid">
+<div class="previewBox"><div class="previewTitle">日報画像</div><img id="reportPreview"></div>
+<div class="previewBox"><div class="previewTitle">明細画像</div><img id="detailPreview"></div>
+</div>
+</section>
+
+<section class="card">
+<div style="color:#6b7280;font-size:13px;line-height:1.5">
+読めた数字候補を行ごとに並べます。違う数字は直接修正してください。
+</div>
+<div class="grid2" style="margin-top:8px">
+<button class="action gray" id="addCash" type="button">＋現金行</button>
+<button class="action gray" id="addReceivable" type="button">＋未収行</button>
+</div>
+<div class="tableWrap">
+<table>
+<thead><tr><th>No</th><th>区分</th><th>日報候補</th><th>明細候補</th><th>採用金額</th><th>差額</th><th>状態</th><th>メモ</th><th>削除</th></tr></thead>
+<tbody id="rowsBody"></tbody>
+</table>
+</div>
+</section>
+
+<section class="card">
+<div class="summary">
+<div class="box"><small>現金合計</small><b id="cashTotal">0円</b></div>
+<div class="box"><small>未収合計</small><b id="receivableTotal">0円</b></div>
+<div class="box"><small>総合計</small><b id="grossTotal">0円</b></div>
+<div class="box"><small>消費税</small><b id="taxTotal">0円</b></div>
+<div class="box"><small>税抜営業収入</small><b id="netTotal">0円</b></div>
+</div>
+</section>
+</main>
+
+<script>
+let reportNums=[], detailNums=[], rows=[];
+const $=id=>document.getElementById(id);
+
+function setStatus(msg,type=""){const el=$("status");el.className="status"+(type?" "+type:"");el.textContent=msg}
+function yen(n){return Number(n||0).toLocaleString("ja-JP")+"円"}
+function normalizeText(t){return String(t||"").replace(/[０-９]/g,s=>String.fromCharCode(s.charCodeAt(0)-0xFEE0)).replace(/[，,円]/g,"")}
+function extractNumbers(t){const found=normalizeText(t).match(/\b\d{2,5}\b/g)||[];return found.map(v=>parseInt(v,10)).filter(v=>v>=50&&v<=99999)}
+function showPreview(file,id){const img=$(id);img.src=URL.createObjectURL(file);img.style.display="block"}
+
+async function readNumbers(file,side){
+ setStatus(side+"を読み取り中。読めた数字候補を取り出しています。");
+ if(typeof Tesseract==="undefined"){setStatus("OCRライブラリが読み込めていません。ネット接続を確認してください。","warn");return[]}
+ try{
+  const result=await Tesseract.recognize(file,"eng",{logger:m=>{if(m.status){const pct=m.progress?Math.round(m.progress*100)+"%":"";setStatus(side+"を読み取り中... "+m.status+" "+pct)}}});
+  const nums=extractNumbers(result.data.text||"");
+  if(!nums.length)setStatus(side+"から数字候補を拾えませんでした。必要な行は手動で追加してください。","warn");
+  else setStatus(side+"から "+nums.length+"件の数字候補を拾いました。","ok");
+  return nums;
+ }catch(e){
+  setStatus(side+"の読み取りに失敗しました。必要な行は手動で追加してください。\n"+e.message,"warn");
+  return[];
+ }
+}
+
+async function handleFile(file,side){
+ if(!file)return;
+ if(side==="日報"){showPreview(file,"reportPreview");reportNums=await readNumbers(file,side)}
+ else{showPreview(file,"detailPreview");detailNums=await readNumbers(file,side)}
+ rebuildRows();
+}
+
+function rebuildRows(){
+ const max=Math.max(reportNums.length,detailNums.length,rows.length);
+ const old=rows,next=[];
+ for(let i=0;i<max;i++){
+  const o=old[i]||{};
+  const report=reportNums[i]??o.report??"";
+  const detail=detailNums[i]??o.detail??"";
+  const adopted=o.adopted!==undefined&&o.adopted!==""?o.adopted:(detail||report||"");
+  next.push({type:o.type||"receivable",report,detail,adopted,memo:o.memo||""});
+ }
+ rows=next;renderRows();
+}
+
+function rowStatus(r){
+ if(r.report!==""&&r.detail!==""&&Number(r.report)!==Number(r.detail))return"要確認";
+ if(r.report!==""&&r.detail==="")return"日報のみ";
+ if(r.report===""&&r.detail!=="")return"明細のみ";
+ return"OK";
+}
+function diff(r){if(r.report===""||r.detail==="")return"";return Number(r.report)-Number(r.detail)}
+function addRow(type){rows.push({type,report:"",detail:"",adopted:"",memo:type==="cash"?"現金追加":"未収追加"});renderRows()}
+function deleteRow(i){rows.splice(i,1);renderRows()}
+
+function renderRows(){
+ const body=$("rowsBody");body.innerHTML="";
+ rows.forEach((r,i)=>{
+  const st=rowStatus(r);
+  const tr=document.createElement("tr");
+  if(st==="要確認"||st==="明細のみ")tr.className="diff";
+  if(st==="日報のみ")tr.className="reportOnly";
+  const bc=st==="OK"?"ok":st==="日報のみ"?"extra":"diff";
+  tr.innerHTML=`
+  <td>${i+1}</td>
+  <td><select data-i="${i}" data-k="type"><option value="cash" ${r.type==="cash"?"selected":""}>現金</option><option value="receivable" ${r.type==="receivable"?"selected":""}>未収</option></select></td>
+  <td><input class="cell" inputmode="numeric" data-i="${i}" data-k="report" value="${r.report}"></td>
+  <td><input class="cell" inputmode="numeric" data-i="${i}" data-k="detail" value="${r.detail}"></td>
+  <td><input class="cell" inputmode="numeric" data-i="${i}" data-k="adopted" value="${r.adopted}"></td>
+  <td>${diff(r)}</td>
+  <td><span class="badge ${bc}">${st}</span></td>
+  <td><input class="memo" data-i="${i}" data-k="memo" value="${escapeHtml(r.memo)}"></td>
+  <td><button class="smallBtn deleteBtn" data-del="${i}">削除</button></td>`;
+  body.appendChild(tr);
+ });
+ body.querySelectorAll("input,select").forEach(el=>{
+  el.addEventListener("change",e=>{
+   const i=Number(e.target.dataset.i),k=e.target.dataset.k;let v=e.target.value;
+   if(["report","detail","adopted"].includes(k)){v=String(v).replace(/[^\d]/g,"");v=v?parseInt(v,10):""}
+   rows[i][k]=v;renderRows();
+  });
+ });
+ body.querySelectorAll("button[data-del]").forEach(btn=>btn.addEventListener("click",e=>deleteRow(Number(e.target.dataset.del))));
+ updateTotals();
+}
+
+function updateTotals(){
+ const cash=rows.filter(r=>r.type==="cash").reduce((s,r)=>s+Number(r.adopted||0),0);
+ const rec=rows.filter(r=>r.type==="receivable").reduce((s,r)=>s+Number(r.adopted||0),0);
+ const gross=cash+rec;
+ const tax=Math.round((gross*10/110)/10)*10;
+ const net=gross-tax;
+ $("cashTotal").textContent=yen(cash);
+ $("receivableTotal").textContent=yen(rec);
+ $("grossTotal").textContent=yen(gross);
+ $("taxTotal").textContent=yen(tax);
+ $("netTotal").textContent=yen(net);
+}
+function escapeHtml(v){return String(v||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+
+document.addEventListener("DOMContentLoaded",()=>{
+ $("reportCam").addEventListener("change",e=>handleFile(e.target.files[0],"日報"));
+ $("reportLib").addEventListener("change",e=>handleFile(e.target.files[0],"日報"));
+ $("detailCam").addEventListener("change",e=>handleFile(e.target.files[0],"明細"));
+ $("detailLib").addEventListener("change",e=>handleFile(e.target.files[0],"明細"));
+ $("addCash").addEventListener("click",()=>addRow("cash"));
+ $("addReceivable").addEventListener("click",()=>addRow("receivable"));
+});
+</script>
+</body>
+</html>
