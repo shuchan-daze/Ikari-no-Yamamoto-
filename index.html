@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OCRテキスト貼り付けテスト</title>
+<style>
+body{font-family:-apple-system,system-ui,sans-serif;background:#f3f3f3;padding:16px;color:#111}
+textarea{width:100%;height:240px;font-size:18px;padding:12px;border-radius:10px;border:1px solid #ccc;box-sizing:border-box}
+button{font-size:20px;font-weight:bold;background:#07143a;color:white;border:0;border-radius:14px;padding:16px 20px;margin:12px 0}
+.box{background:white;border-radius:12px;padding:14px;margin-top:12px;white-space:pre-wrap}
+.num{font-size:24px;font-weight:bold;padding:4px 0}
+</style>
+</head>
+<body>
+
+<h2>Live Text貼り付け → 数字抽出テスト</h2>
+
+<textarea id="ocrInput" placeholder="写真アプリのLive Textでコピーした文字をここに貼る"></textarea>
+
+<button onclick="runExtract()">数字を抽出</button>
+
+<h3>補正後テキスト</h3>
+<div id="fixedText" class="box"></div>
+
+<h3>抽出した数字</h3>
+<div id="numbers" class="box"></div>
+
+<script>
+function runExtract(){
+  let text = document.getElementById("ocrInput").value || "";
+
+  // OCR誤認識の最低限補正
+  text = text
+    .replace(/[￥¥]/g, "")
+    .replace(/円/g, "")
+    .replace(/,/g, "")
+    .replace(/[OoＯｏ]/g, "0")
+    .replace(/[Ilｌ｜]/g, "1")
+    .replace(/[ＳS]/g, "5")
+    .replace(/[ＢB]/g, "8");
+
+  document.getElementById("fixedText").textContent = text;
+
+  const nums = extractNumbers(text);
+
+  document.getElementById("numbers").innerHTML =
+    nums.length
+      ? nums.map(n => `<div class="num">${n.toLocaleString()}</div>`).join("")
+      : "数字なし";
+}
+
+function extractNumbers(text){
+  const matches = text.match(/\d[\d\s.,-]{1,}/g) || [];
+
+  return matches
+    .map(s => s.replace(/[^\d]/g,""))
+    .filter(s => s.length >= 2)
+    .map(Number)
+    .filter(n => Number.isFinite(n) && n > 0);
+}
+</script>
+
+</body>
+</html>
