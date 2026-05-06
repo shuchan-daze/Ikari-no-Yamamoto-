@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OCR数字読み取りテスト</title>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+body{
+  font-family:-apple-system,system-ui,sans-serif;
+  background:#f3f3f3;
+  padding:16px;
+  color:#111;
+}
+
+h2,h3{
+  margin-top:24px;
+}
+
+.button{
+  display:inline-block;
+  padding:14px 18px;
+  background:#0b1b4d;
+  color:white;
+  border-radius:12px;
+  font-size:18px;
+  font-weight:bold;
+  border:none;
+  margin:8px 0;
+}
+
+.box{
+  background:white;
+  border-radius:12px;
+  padding:12px;
+  margin-top:12px;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+img,canvas{
+  max-width:100%;
+  background:white;
+  border:1px solid #ccc;
+  border-radius:8px;
+}
+
+.number{
+  font-size:22px;
+  font-weight:bold;
+  padding:4px 0;
+}
+</style>
+</head>
+
+<body>
+
+<h2>OCR数字読み取りテスト</h2>
+
+<!-- 撮影 -->
+<div>
+  <input
+    id="cameraInput"
+    type="file"
+    accept="image/*"
+    capture="environment"
+    style="display:none"
+  >
+
+  <button class="button" onclick="openCamera()">
+    📸 写真を撮影
+  </button>
+</div>
+
+<!-- ライブラリ -->
+<div>
+  <input
+    id="libraryInput"
+    type="file"
+    accept="image/*"
+    style="display:none"
+  >
+
+  <button class="button" onclick="openLibrary()">
+    🖼 ライブラリから選択
+  </button>
+</div>
+
+<!-- OCR開始 -->
+<div>
+  <button class="button" id="runBtn">
+    🔍 OCR開始
+  </button>
+</div>
+
+<div id="status" class="box">
+画像を選択してください
+</div>
+
+<h3>元画像</h3>
+<img id="preview">
+
+<h3>OCRに渡す画像</h3>
+<canvas id="canvas"></canvas>
+
+<h3>OCR生テキスト</h3>
+<div id="rawText" class="box"></div>
+
+<h3>抽出した数字</h3>
+<div id="numbers" class="box"></div>
+
+<script>
+
+const cameraInput = document.getElementById("cameraInput");
+const libraryInput = document.getElementById("libraryInput");
+
+const runBtn = document.getElementById("runBtn");
+
+const preview = document.getElementById("preview");
+const canvas = document.getElementById("canvas");
+
+const statusBox = document.getElementById("status");
+const rawTextBox = document.getElementById("rawText");
+const numbersBox = document.getElementById("numbers");
+
+let imageDataUrl = null;
+
+function openCamera(){
+  cameraInput.click();
+}
+
+function openLibrary(){
+  libraryInput.click();
+}
+
+cameraInput.addEventListener("change", handleFile);
+libraryInput.addEventListener("change", handleFile);
+
+async function handleFile(event){
+
+  const file = event.target.files[0];
+
+  if(!file) return;
+
+  statusBox.textContent = "画像読み込み中...";
+
+  imageDataUrl = await fileToDataURL(file);
+
+  preview.src = imageDataUrl;
+
+  rawTextBox.textContent = "";
+  numbersBox.textContent = "";
+
+  await drawImageToCanvas(imageDataUrl);
+
+  statusBox.textContent = "画像準備完了";
+}
+
+runBtn.addEventListener("click", async ()=>{
+
+  if(!imageDataUrl){
+    alert("先に画像を選択してください");
+    return;
+  }
+
+  statusBox.textContent = "OCR開始...";
+
+  try{
+
+    const imageForOCR = canvas.toDataURL("image/jpeg",0.95);
+
+    const result = await Tesseract.recognize(
+      imageForOCR,
+      "eng",
+      {
+        logger: m => {
+
+          if(m.status){
+
+            statusBox.textContent =
+              `OCR実行中: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+          }
+        }
+      }
+    );
+
+    const text = result.data.text || "";
+
+    rawTextBox.textContent =
+      text || "OCRテキストなし";
+
+    const nums = extractNumbers(text);
+
+    if(nums.length === 0){
+
+      statusBox.textContent =
+        "失敗：数字を読み取れませんでした";
+
+      numbersBox.textContent = "数字なし";
+
+      return;
+    }
+
+    statusBox.textContent =
+      `成功：${nums.length}件`;
+
+    numbersBox.innerHTML =
+      nums.map(n =>
+        `<div class="number">${n.toLocaleString()}</div>`
+      ).join("");
+
+  }catch(err){
+
+    console.error(err);
+
+    statusBox.textContent =
+      "OCRエラー：" + err.message;
+  }
+
+});
+
+function fileToDataURL(file){
+
+  return new Promise((resolve,reject)=>{
+
+    const reader = new FileReader();
+
+    reader.onload = ()=> resolve(reader.result);
+
+    reader.onerror = reject;
+
+    reader.readAsDataURL(file);
+
+  });
+}
+
+function loadImage(src){
+
+  return new Promise((resolve,reject)=>{
+
+    const img = new Image();
+
+    img.onload = ()=> resolve(img);
+
+    img.onerror = reject;
+
+    img.src = src;
+
+  });
+}
+
+async function drawImageToCanvas(src){
+
+  const img = await loadImage(src);
+
+  const ctx = canvas.getContext(
+    "2d",
+    { willReadFrequently:true }
+  );
+
+  const maxWidth = 1200;
+
+  const scale = Math.min(
+    maxWidth / img.naturalWidth,
+    1
+  );
+
+  canvas.width =
+    Math.floor(img.naturalWidth * scale);
+
+  canvas.height =
+    Math.floor(img.naturalHeight * scale);
+
+  ctx.fillStyle = "white";
+
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  ctx.drawImage(
+    img,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  statusBox.textContent =
+    `Canvas描画OK：${canvas.width} × ${canvas.height}`;
+}
+
+function extractNumbers(text){
+
+  const matches =
+    text.match(/[0-9][0-9,.\s]{1,}/g) || [];
+
+  return matches
+    .map(s =>
+      s.replace(/[^\d]/g,"")
+    )
+    .filter(s =>
+      s.length >= 2
+    )
+    .map(Number)
+    .filter(n =>
+      Number.isFinite(n) && n > 0
+    );
+}
+
+</script>
+
+</body>
+</html>
