@@ -3,101 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>日報チェック by 怒りの山本 v2.4</title>
+<title>日報チェック by 怒りの山本 v2.5 確認支援UI版</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root {
   --bg:#f4f5f7; --card:#fff; --text:#111827; --muted:#6b7280; --line:#d7dce3;
-  --main:#111827; --red:#ffe8e8; --blue:#e8f5ff; --yellow:#fff6d8;
-  --green:#e8f8ef; --greenText:#047857; --redText:#b91c1c;
+  --main:#111827; --red:#ffe8e8; --blue:#e8f5ff; --yellow:#fff6d8; --green:#e8f8ef;
+  --redText:#b91c1c; --greenText:#047857;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
 header{position:sticky;top:0;z-index:10;background:rgba(244,245,247,.96);backdrop-filter:blur(10px);padding:16px 14px 10px}
 h1{font-size:21px;margin:0}
-.sub{color:var(--muted);font-size:13px;margin-top:4px;line-height:1.4}
-main{max-width:920px;margin:0 auto;padding:10px 12px 48px}
+.sub{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.4}
+main{max-width:980px;margin:0 auto;padding:10px 12px 48px}
 .card{background:var(--card);border:1px solid #e5e7eb;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fileInput{display:none!important}
 .action{display:block;width:100%;text-align:center;border:0;border-radius:14px;padding:16px 12px;font-size:17px;font-weight:800;color:#fff;background:var(--main);margin-top:8px;cursor:pointer;appearance:none}
-.action.green{background:#047857}
 .action.gray{background:#e5e7eb;color:#111827}
 .note{color:var(--muted);font-size:13px;line-height:1.5}
 .status{margin-top:10px;padding:12px;border-radius:14px;border:1px solid #e5e7eb;background:#f9fafb;color:#374151;font-size:13px;white-space:pre-wrap}
 .status.ok{background:var(--green);border-color:#86efac;color:var(--greenText);font-weight:700}
-.status.ng{background:#fee2e2;border-color:#fecaca;color:var(--redText);font-weight:700}
-.preview{display:none;width:100%;max-height:260px;object-fit:contain;border:1px solid #e5e7eb;border-radius:14px;background:#f9fafb;margin-top:10px}
-.flow{display:grid;gap:8px}
-.flowStep{padding:10px 12px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;font-size:14px}
-textarea{width:100%;min-height:92px;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:15px;margin-top:6px}
+.status.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412;font-weight:700}
+.previewGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.previewBox{background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:8px}
+.previewBox img{width:100%;max-height:260px;object-fit:contain;display:none;border-radius:10px}
+.previewTitle{font-size:13px;color:var(--muted);margin-bottom:6px}
 .summary{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .box{background:var(--yellow);border:1px solid #facc15;border-radius:14px;padding:12px}
-.box small{color:var(--muted);display:block}
+.box small{display:block;color:var(--muted)}
 .box b{font-size:22px}
 .tableWrap{overflow-x:auto;border:1px solid #e5e7eb;border-radius:14px;background:#fff;margin-top:10px}
-table{width:100%;min-width:760px;border-collapse:collapse}
+table{width:100%;min-width:900px;border-collapse:collapse}
 th,td{border-bottom:1px solid #e5e7eb;padding:8px;font-size:14px;text-align:center}
 th{background:#f3f4f6}
-tr.warn{background:var(--red)}
-tr.extra{background:var(--blue)}
-input.cell{width:100%;min-width:82px;text-align:right;padding:8px;font-size:16px;border:1px solid #d1d5db;border-radius:10px}
+tr.diff{background:var(--red)}
+tr.reportOnly{background:var(--blue)}
+input.cell{width:100%;min-width:86px;text-align:right;padding:8px;font-size:16px;border:1px solid #d1d5db;border-radius:10px}
 input.memo{width:100%;min-width:150px;padding:8px;font-size:14px;border:1px solid #d1d5db;border-radius:10px}
-select{padding:8px;font-size:15px;border:1px solid #d1d5db;border-radius:10px}
+select{padding:8px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;background:#fff}
+.smallBtn{border:0;border-radius:10px;padding:8px 10px;background:#e5e7eb;color:#111827;font-weight:700}
+.deleteBtn{background:#fee2e2;color:#991b1b}
 .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-weight:800;font-size:12px}
 .badge.ok{background:var(--green);color:var(--greenText)}
-.badge.warn{background:#fee2e2;color:var(--redText)}
+.badge.diff{background:#fee2e2;color:#b91c1c}
 .badge.extra{background:#dbeafe;color:#1d4ed8}
-.resultOk{margin-top:10px;padding:14px;border-radius:14px;background:var(--green);color:var(--greenText);font-weight:800;text-align:center}
-.resultNg{margin-top:10px;padding:14px;border-radius:14px;background:#fee2e2;color:var(--redText);font-weight:800;text-align:center}
 .readme{display:none;white-space:pre-wrap;overflow:auto;max-height:440px;border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#f9fafb;font-size:13px;line-height:1.55}
 </style>
 </head>
 <body>
 <header>
-  <h1>日報チェック by 怒りの山本 v2.4</h1>
-  <div class="sub">日報を正しく仕上げるための確認アプリ。まずは撮影または写真選択から。</div>
+  <h1>日報チェック by 怒りの山本 v2.5</h1>
+  <div class="sub">OCRで止めず、読めた候補を1件ずつ直す確認支援UI。</div>
 </header>
 
 <main>
   <section class="card">
     <div class="grid2">
-      <label class="action" for="reportCam">📷 日報を撮影</label>
-      <label class="action gray" for="reportLib">🖼 日報の写真を選択</label>
+      <label class="action" for="reportFile">🖼 日報の写真を選択</label>
+      <label class="action gray" for="detailFile">🖼 明細の写真を選択</label>
     </div>
-    <div class="grid2">
-      <label class="action" for="detailCam">📷 明細を撮影</label>
-      <label class="action gray" for="detailLib">🖼 明細の写真を選択</label>
-    </div>
-
-    <input id="reportCam" class="fileInput" type="file" accept="image/*" capture="environment">
-    <input id="reportLib" class="fileInput" type="file" accept="image/*">
-    <input id="detailCam" class="fileInput" type="file" accept="image/*" capture="environment">
-    <input id="detailLib" class="fileInput" type="file" accept="image/*">
-    <input id="finalCam" class="fileInput" type="file" accept="image/*" capture="environment">
-    <input id="finalLib" class="fileInput" type="file" accept="image/*">
-
-    <img id="preview" class="preview">
-    <div id="status" class="status">撮影または写真選択をしてください。過去の写真を使う場合は、日付と内容を確認してください。</div>
+    <input id="reportFile" class="fileInput" type="file" accept="image/*" capture="environment">
+    <input id="detailFile" class="fileInput" type="file" accept="image/*" capture="environment">
+    <div id="status" class="status">日報または明細の写真を選択してください。読めた数字候補を一覧に出します。</div>
   </section>
 
   <section class="card">
-    <div class="flow">
-      <div class="flowStep">📷 ① 日報を撮る、または写真を選ぶ</div>
-      <div class="flowStep">📷 ② 明細を撮る、または写真を選ぶ</div>
-      <div class="flowStep">🔍 ③ 日報と明細を見比べて間違いがないか確認する</div>
-      <div class="flowStep">✏️ ④ 必要なら表を修正する</div>
-      <div class="flowStep">📷 ⑤ 完成日報を最終チェックする</div>
+    <div class="previewGrid">
+      <div class="previewBox">
+        <div class="previewTitle">日報画像</div>
+        <img id="reportPreview">
+      </div>
+      <div class="previewBox">
+        <div class="previewTitle">明細画像</div>
+        <img id="detailPreview">
+      </div>
     </div>
   </section>
 
   <section class="card">
-    <div class="note">読み取り結果は下で修正できます。数字が変なら、ここで直してから確認してください。</div>
-    <label class="note">日報側</label>
-    <textarea id="reportText" placeholder="日報の数字"></textarea>
-    <label class="note">明細側</label>
-    <textarea id="detailText" placeholder="明細の数字"></textarea>
-    <button class="action" id="compareButton" type="button">🔍 日報と明細を見比べて間違いがないか確認する</button>
+    <div class="note">
+      読み取れた数字を行ごとに並べます。違う数字は直接修正してください。<br>
+      日報にしかない貸切・伝票などは「日報のみ」として残せます。
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <button class="action gray" id="addCash" type="button">＋現金行</button>
+      <button class="action gray" id="addReceivable" type="button">＋未収行</button>
+    </div>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>区分</th>
+            <th>日報候補</th>
+            <th>明細候補</th>
+            <th>採用金額</th>
+            <th>差額</th>
+            <th>状態</th>
+            <th>メモ</th>
+            <th>削除</th>
+          </tr>
+        </thead>
+        <tbody id="rowsBody"></tbody>
+      </table>
+    </div>
   </section>
 
   <section class="card">
@@ -108,390 +119,164 @@ select{padding:8px;font-size:15px;border:1px solid #d1d5db;border-radius:10px}
       <div class="box"><small>消費税</small><b id="taxTotal">0円</b></div>
       <div class="box"><small>税抜営業収入</small><b id="netTotal">0円</b></div>
     </div>
-    <div class="grid2" style="margin-top:8px">
-      <button class="action gray" id="addCash" type="button">＋現金行</button>
-      <button class="action gray" id="addReceivable" type="button">＋未収行</button>
-    </div>
-    <div class="tableWrap">
-      <table>
-        <thead><tr><th>No</th><th>区分</th><th>日報</th><th>明細</th><th>採用</th><th>状態</th><th>メモ</th></tr></thead>
-        <tbody id="rowsBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="grid2">
-      <label class="action green" for="finalCam">📷 完成日報を撮影</label>
-      <label class="action gray" for="finalLib">🖼 完成日報写真を選択</label>
-    </div>
-    <div id="finalResult"></div>
   </section>
 
   <section class="card">
     <button class="action gray" id="readmeButton" type="button">📘 README / バージョン履歴を見る</button>
-    <div id="readme" class="readme"># 日報チェック by 怒りの山本 v2.4
+    <div id="readme" class="readme">日報チェック by 怒りの山本 v2.5
 
-## v2.4 の位置づけ
+v2.5 は、OCRで完璧に読み取ることを目的にした版ではありません。
 
-v2.4 は、これまでの試作で出た問題を整理し、Webアプリ版として使いやすさを優先して作り直した現時点の完成版です。
+目的は、疲れた状態でも日報と明細を見比べやすくし、
+どこを直せばよいかを短時間で判断できるようにすることです。
 
-重要なのは、金儲けの前に「本当に便利か」「本当に使えるか」を確認することです。  
-このアプリは、日報作業のストレスを減らし、現場で毎日使えるかどうかを確かめるためのものです。
-
-## なぜこのアプリを作ったか
-
-このアプリは、日々の業務の中で感じていた強いストレスと非効率を解消するために生まれた。
-
-毎日、手書きで日報をつけ、仕事が終わって疲れ切った状態でその内容を確認する。
-
-数字が合わない。  
-どこかで書き間違えた。  
-記憶をたどってなんとか修正する。
-
-ようやく完成させたと思ったら、後日、経理から「間違っている」と差し戻される。
-
-これはただの作業ではなく、ストレスであり、時間の無駄でしかなかった。
-
-この無駄な作業を、できるだけ短時間で終わらせたい。  
-そして、自分の時間を取り戻したい。
-
-そう考えて、このアプリを設計した。
-
-同時に、この仕組みを共有することで、他の人も楽になる。
-
-さらに会社全体で考えれば、1人あたり5分、10分、場合によっては30分の削減になる。
-
-それが全社員に広がれば、どれだけの時間と価値が生まれるかは明らかである。
-
-それだけの価値があるにも関わらず、これまで改善されてこなかった現場の仕組みに対する疑問と怒りもある。
-
-紙ベースでの非効率な作業、形だけのマニュアル的な運用、時代に合っていないやり方。
-
-そういったものを終わらせたい。
-
-このアプリは、その怒りと問題意識を出発点として作られている。
-
-使ってみて気づいたことや違和感があれば、意見を聞かせてほしい。
-
-このアプリはまだ完成ではないし、現場で使いながら直していくものだと考えている。
-
-少しでもこの無駄な作業とストレスを減らしたい。  
-そのために、必要な修正は続けていく。
-
-## 設計者
-
-設計者：怒りの山本  
-設計支援：ChatGPT
-
-AIだけで誰でも作れるものではありません。  
-何を解決するのかを整理し、どこを簡略化し、どこを厳密にするかを判断し、現場で起きるズレや例外を前提に設計する必要があります。
-
-AIはあくまで補助です。  
-どう使うかは設計側の問題です。
-
-## 基本思想
-
-- 最終的に提出するのは手書き日報
-- このアプリは手書き日報を正確に仕上げるための確認ツール
-- 営業明細は重要な基準
-- OCRは補助
-- 不確かな読み取りは無理に使わない
-- 現金と未収を重視
-- 消費税を必ず表示
-
-## 機能
-
-- 日報を撮影
-- 日報写真を選択
-- 明細を撮影
-- 明細写真を選択
-- 完成日報を撮影
-- 完成日報写真を選択
-- 写真品質チェック
-- OCR信頼度チェック
-- 数字抽出
-- 日報と明細の照合
-- 不一致の薄赤表示
-- 日報のみの薄水色表示
-- 現金／未収の切り替え
-- 採用金額の修正
-- 現金合計
-- 未収合計
-- 総売上
-- 消費税
-- 税抜営業収入
-- 完成日報の最終チェック
-- README表示
-
-## 注意
-
-この版はWebアプリ版です。  
-OCRライブラリはCDNから読み込むため、初回または環境によってはネット接続が必要です。
-
-iPhoneのローカルHTMLでは、環境によってカメラ起動や写真選択が不安定になる可能性があります。  
-その場合はHTTPS環境での運用が必要になります。
-
-## バージョン履歴
-
-### v1.0
-日報の数字をOCRで拾ってExcel/Numbers化する構想。
-
-### v1.1
-営業明細書を正しい数字の基準として扱う方向へ転換。
-
-### v1.2
-「読む」より「合わせる」ことが重要と整理。
-
-### v1.3
-現金・未収だけを重視する方針を確定。
-
-### v1.4
-現金の正確性と日報の完全性を両立させる必要を整理。
-
-### v1.5
-貸切・伝票・後日未収など、日報のみの項目を考慮。
-
-### v1.6
-件数ズレと例外件数の考え方を整理。
-
-### v1.7
-過剰な機能を削り、シンプル化の方針へ。
-
-### v1.8
-初期アプリ化。
-
-### v1.9
-消費税表示を追加。
-
-### v1.10
-UI導線改善。
-
-### v1.11
-バージョン管理ルールを導入。
-
-### v1.12
-履歴統合を試みたが、README説明が不十分だった。
-
-### v1.13
-READMEの役割を見直し、設計思想を残す方向へ。
-
-### v1.14
-ブランド名とカメラ導線を調整。
-
-### v1.15
-本質再整理版。
-
-### v1.152
-「なぜこのアプリを作ったか」をREADMEに反映。
-
-### v1.153
-UI問題を修正。
-
-### v1.154
-不確かな読み取りを採用しない品質ゲートを追加。
-
-### v2.0
-思想変更。既存コードを継ぎ足さず、コードを1から書き直した。
-
-### v2.1
-撮影ボタンを上部へ戻し、再撮影の文言を丁寧に修正。
-
-### v2.2
-撮影と写真選択を分離。
-
-### v2.3
-READMEに開発についての説明を追加。
-
-### v2.31
-写真選択の反応確認を行うために最小版を出したが、UIを壊したため失敗。
-
-### v2.32
-v2.3のUIを維持したまま写真選択の接続を修正。
-
-### v2.4
-実用テストのための現時点の完成版。  
-UI、撮影/写真選択、照合、品質チェック、消費税、最終チェック、READMEを一つにまとめ直した。
-</div>
+OCRの失敗で止めるのではなく、
+読めた数字候補を出し、1件ずつ確認・修正する確認支援UIです。</div>
   </section>
 </main>
 
 <script>
-const CONFIG = {
-  minWidth: 700, minHeight: 700, minBrightness: 60, maxBrightness: 245,
-  minSharpness: 25, minConfidence: 55, minAmount: 50, maxAmount: 99999
-};
-let appRows = [];
-let finalNumbers = [];
+let reportNums = [];
+let detailNums = [];
+let rows = [];
 const $ = id => document.getElementById(id);
 
-function yen(value) { return Number(value || 0).toLocaleString("ja-JP") + "円"; }
-function setStatus(message, type="") {
-  const box = $("status");
-  box.className = "status" + (type ? " " + type : "");
-  box.textContent = message;
+function setStatus(msg, type="") {
+  const el = $("status");
+  el.className = "status" + (type ? " " + type : "");
+  el.textContent = msg;
 }
+
+function yen(n) {
+  return Number(n || 0).toLocaleString("ja-JP") + "円";
+}
+
 function normalizeText(text) {
   return String(text || "")
     .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0)-0xFEE0))
-    .replace(/[，,]/g, "").replace(/[円]/g, "");
+    .replace(/[，,]/g, "")
+    .replace(/[円]/g, "");
 }
+
 function extractNumbers(text) {
   const found = normalizeText(text).match(/\b\d{2,5}\b/g) || [];
-  return found.map(v => parseInt(v,10)).filter(v => v >= CONFIG.minAmount && v <= CONFIG.maxAmount);
+  return found.map(v => parseInt(v,10)).filter(v => v >= 50 && v <= 99999);
 }
-async function inspectImage(file) {
-  const img = new Image();
-  const url = URL.createObjectURL(file);
-  await new Promise((resolve,reject)=>{ img.onload=resolve; img.onerror=reject; img.src=url; });
-  const canvas = document.createElement("canvas");
-  const maxSide = 900;
-  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-  canvas.width = Math.max(1, Math.round(img.width*scale));
-  canvas.height = Math.max(1, Math.round(img.height*scale));
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
-  const gray = new Float32Array(canvas.width*canvas.height);
-  let brightnessSum = 0;
-  for(let i=0,p=0;i<pixels.length;i+=4,p++) {
-    const g = 0.299*pixels[i] + 0.587*pixels[i+1] + 0.114*pixels[i+2];
-    gray[p]=g; brightnessSum += g;
-  }
-  const brightness = brightnessSum / Math.max(1, gray.length);
-  let laps = [];
-  const w=canvas.width,h=canvas.height;
-  for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) {
-    const i=y*w+x;
-    laps.push(-4*gray[i]+gray[i-1]+gray[i+1]+gray[i-w]+gray[i+w]);
-  }
-  const avg = laps.reduce((a,b)=>a+b,0) / Math.max(1,laps.length);
-  const sharpness = laps.reduce((a,b)=>a+(b-avg)*(b-avg),0) / Math.max(1,laps.length);
-  URL.revokeObjectURL(url);
-  return {width:img.width, height:img.height, brightness, sharpness};
+
+function showPreview(file, targetId) {
+  const img = $(targetId);
+  img.src = URL.createObjectURL(file);
+  img.style.display = "block";
 }
-function imageProblems(info) {
-  const p=[];
-  if(info.width < CONFIG.minWidth || info.height < CONFIG.minHeight) p.push("画像が小さく、数字が読み取りにくい状態です。紙をもう少し大きく写して再撮影をお願いします。");
-  if(info.brightness < CONFIG.minBrightness) p.push("写真が暗く、数字が読み取りにくい状態です。明るい場所で再撮影をお願いします。");
-  if(info.brightness > CONFIG.maxBrightness) p.push("写真が明るすぎて、数字が読み取りにくい状態です。白飛びしないように再撮影をお願いします。");
-  if(info.sharpness < CONFIG.minSharpness) p.push("ピントが甘く、数字が読み取りにくい可能性があります。手ブレしないように再撮影をお願いします。");
-  return p;
-}
-function confidenceProblems(result) {
-  const words = result.data.words || [];
-  const bad = [];
-  for(const word of words) {
-    const token = normalizeText(word.text || "").replace(/[^\d]/g,"");
-    if(!token) continue;
-    const n = parseInt(token,10);
-    if(Number.isNaN(n) || n < CONFIG.minAmount || n > CONFIG.maxAmount) continue;
-    const conf = word.confidence ?? 100;
-    if(conf < CONFIG.minConfidence) bad.push(`${n}（信頼度 ${Math.round(conf)}）`);
+
+async function readNumbers(file, side) {
+  setStatus(side + "を読み取り中です。読めた数字候補を取り出しています。");
+  if (typeof Tesseract === "undefined") {
+    setStatus("OCRライブラリが読み込めていません。ネット接続を確認してください。", "warn");
+    return [];
   }
-  return bad.length ? ["読み取りが不確かな数字があります: " + bad.slice(0,5).join(", ")] : [];
-}
-async function processPhoto(file, kind) {
-  const preview = $("preview");
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = "block";
-  setStatus(labelFor(kind) + "の写真品質を確認中...");
-  const quality = await inspectImage(file);
-  const qualityIssues = imageProblems(quality);
-  if(qualityIssues.length) {
-    setStatus(labelFor(kind) + "の数字を読み取れませんでした。\n" + qualityIssues.join("\n"), "ng");
-    return;
-  }
-  setStatus(labelFor(kind) + "を読み取り中...");
-  const result = await Tesseract.recognize(file, "eng", {
-    logger: m => {
-      if(m.status) {
-        const pct = m.progress ? Math.round(m.progress*100) + "%" : "";
-        setStatus(labelFor(kind) + "を読み取り中... " + m.status + " " + pct);
+  try {
+    const result = await Tesseract.recognize(file, "eng", {
+      logger: m => {
+        if(m.status) {
+          const pct = m.progress ? Math.round(m.progress*100) + "%" : "";
+          setStatus(side + "を読み取り中... " + m.status + " " + pct);
+        }
       }
+    });
+    const nums = extractNumbers(result.data.text || "");
+    if(!nums.length) {
+      setStatus(side + "から数字候補を拾えませんでした。必要な行は手動で追加してください。", "warn");
+    } else {
+      setStatus(side + "から " + nums.length + "件の数字候補を拾いました。", "ok");
     }
-  });
-  const confIssues = confidenceProblems(result);
-  if(confIssues.length) {
-    setStatus(labelFor(kind) + "の数字を読み取れませんでした。\n" + confIssues.join("\n") + "\n再撮影をお願いします。", "ng");
-    return;
+    return nums;
+  } catch(e) {
+    setStatus(side + "の読み取り中に失敗しました。必要な行は手動で追加してください。\n" + e.message, "warn");
+    return [];
   }
-  const numbers = extractNumbers(result.data.text || "");
-  if(!numbers.length) {
-    setStatus(labelFor(kind) + "から数字を拾えませんでした。金額欄を大きく写して、再撮影をお願いします。", "ng");
-    return;
-  }
-  if(kind === "report") {
-    $("reportText").value = numbers.join("\n");
-    setStatus("日報読み取りOK: " + numbers.length + "件", "ok");
-  } else if(kind === "detail") {
-    $("detailText").value = numbers.join("\n");
-    setStatus("明細読み取りOK: " + numbers.length + "件", "ok");
+}
+
+async function handleFile(file, side) {
+  if(!file) return;
+  if(side === "日報") {
+    showPreview(file, "reportPreview");
+    reportNums = await readNumbers(file, side);
   } else {
-    finalNumbers = numbers;
-    setStatus("完成日報読み取りOK: " + numbers.length + "件", "ok");
-    finalCheck();
-    return;
+    showPreview(file, "detailPreview");
+    detailNums = await readNumbers(file, side);
   }
-  if($("reportText").value.trim() && $("detailText").value.trim()) compareRows();
+  rebuildRows();
 }
-function labelFor(kind) {
-  return kind === "report" ? "日報" : kind === "detail" ? "明細" : "完成日報";
-}
-function attachFileHandler(id, kind) {
-  const input = $(id);
-  if(!input) {
-    setStatus("内部エラー: " + id + " が見つかりません。", "ng");
-    return;
-  }
-  input.addEventListener("change", async event => {
-    const file = event.target.files[0];
-    if(!file) return;
-    try { await processPhoto(file, kind); }
-    catch(error) { setStatus(labelFor(kind) + "の処理に失敗しました。\n" + error.message, "ng"); }
-    finally { input.value = ""; }
-  });
-}
-function compareRows() {
-  const report = extractNumbers($("reportText").value);
-  const detail = extractNumbers($("detailText").value);
-  const max = Math.max(report.length, detail.length);
-  appRows = [];
+
+function rebuildRows() {
+  const max = Math.max(reportNums.length, detailNums.length, rows.length);
+  const old = rows;
+  const next = [];
   for(let i=0;i<max;i++) {
-    const r = i < report.length ? report[i] : "";
-    const d = i < detail.length ? detail[i] : "";
-    let status = "OK", note = "", adopted = d || r || "";
-    if(r !== "" && d !== "" && r !== d) { status = "要確認"; note = r + " → " + d; adopted = d; }
-    else if(r !== "" && d === "") { status = "日報のみ"; note = "貸切・伝票など明細外"; adopted = r; }
-    else if(r === "" && d !== "") { status = "明細のみ"; note = "日報への書き漏れ候補"; adopted = d; }
-    appRows.push({type:"receivable", report:r, detail:d, adopted, status, note});
+    const oldRow = old[i] || {};
+    const report = reportNums[i] ?? oldRow.report ?? "";
+    const detail = detailNums[i] ?? oldRow.detail ?? "";
+    const adopted = oldRow.adopted !== undefined && oldRow.adopted !== "" ? oldRow.adopted : (detail || report || "");
+    next.push({
+      type: oldRow.type || "receivable",
+      report,
+      detail,
+      adopted,
+      memo: oldRow.memo || ""
+    });
   }
+  rows = next;
   renderRows();
 }
-function addManualRow(type) {
-  appRows.push({type, report:"", detail:"", adopted:"", status:"日報のみ", note:type==="cash"?"現金追加":"未収追加"});
+
+function rowStatus(row) {
+  if(row.report !== "" && row.detail !== "" && Number(row.report) !== Number(row.detail)) return "要確認";
+  if(row.report !== "" && row.detail === "") return "日報のみ";
+  if(row.report === "" && row.detail !== "") return "明細のみ";
+  return "OK";
+}
+
+function diff(row) {
+  if(row.report === "" || row.detail === "") return "";
+  return Number(row.report) - Number(row.detail);
+}
+
+function addRow(type) {
+  rows.push({type, report:"", detail:"", adopted:"", memo:type==="cash"?"現金追加":"未収追加"});
   renderRows();
 }
+
+function deleteRow(index) {
+  rows.splice(index,1);
+  renderRows();
+}
+
 function renderRows() {
   const body = $("rowsBody");
   body.innerHTML = "";
-  appRows.forEach((row, index) => {
+  rows.forEach((row, index) => {
+    const status = rowStatus(row);
     const tr = document.createElement("tr");
-    if(row.status === "要確認" || row.status === "明細のみ") tr.className = "warn";
-    if(row.status === "日報のみ") tr.className = "extra";
-    const badgeClass = row.status === "OK" ? "ok" : row.status === "日報のみ" ? "extra" : "warn";
+    if(status === "要確認" || status === "明細のみ") tr.className = "diff";
+    if(status === "日報のみ") tr.className = "reportOnly";
+    const badgeClass = status === "OK" ? "ok" : status === "日報のみ" ? "extra" : "diff";
+    const d = diff(row);
     tr.innerHTML = `
       <td>${index+1}</td>
       <td><select data-i="${index}" data-k="type"><option value="cash" ${row.type==="cash"?"selected":""}>現金</option><option value="receivable" ${row.type==="receivable"?"selected":""}>未収</option></select></td>
       <td><input class="cell" inputmode="numeric" data-i="${index}" data-k="report" value="${row.report}"></td>
       <td><input class="cell" inputmode="numeric" data-i="${index}" data-k="detail" value="${row.detail}"></td>
       <td><input class="cell" inputmode="numeric" data-i="${index}" data-k="adopted" value="${row.adopted}"></td>
-      <td><span class="badge ${badgeClass}">${row.status}</span></td>
-      <td><input class="memo" data-i="${index}" data-k="note" value="${escapeHtml(row.note)}"></td>`;
+      <td>${d}</td>
+      <td><span class="badge ${badgeClass}">${status}</span></td>
+      <td><input class="memo" data-i="${index}" data-k="memo" value="${escapeHtml(row.memo)}"></td>
+      <td><button class="smallBtn deleteBtn" data-del="${index}">削除</button></td>
+    `;
     body.appendChild(tr);
   });
-  body.querySelectorAll("input,select").forEach(input => {
-    input.addEventListener("change", e => {
+  body.querySelectorAll("input,select").forEach(el => {
+    el.addEventListener("change", e => {
       const i = Number(e.target.dataset.i);
       const k = e.target.dataset.k;
       let v = e.target.value;
@@ -499,15 +284,19 @@ function renderRows() {
         v = String(v).replace(/[^\d]/g,"");
         v = v ? parseInt(v,10) : "";
       }
-      appRows[i][k] = v;
-      updateTotals();
+      rows[i][k] = v;
+      renderRows();
     });
+  });
+  body.querySelectorAll("button[data-del]").forEach(btn => {
+    btn.addEventListener("click", e => deleteRow(Number(e.target.dataset.del)));
   });
   updateTotals();
 }
+
 function updateTotals() {
-  const cash = appRows.filter(r=>r.type==="cash").reduce((s,r)=>s+Number(r.adopted||0),0);
-  const receivable = appRows.filter(r=>r.type==="receivable").reduce((s,r)=>s+Number(r.adopted||0),0);
+  const cash = rows.filter(r=>r.type==="cash").reduce((s,r)=>s+Number(r.adopted||0),0);
+  const receivable = rows.filter(r=>r.type==="receivable").reduce((s,r)=>s+Number(r.adopted||0),0);
   const gross = cash + receivable;
   const tax = Math.round((gross * 10 / 110) / 10) * 10;
   const net = gross - tax;
@@ -517,40 +306,20 @@ function updateTotals() {
   $("taxTotal").textContent = yen(tax);
   $("netTotal").textContent = yen(net);
 }
-function finalCheck() {
-  const adopted = appRows.map(r=>Number(r.adopted||0)).filter(Boolean);
-  const max = Math.max(adopted.length, finalNumbers.length);
-  let ok = true;
-  let output = '<div class="tableWrap"><table><thead><tr><th>No</th><th>完成日報</th><th>正解</th><th>状態</th></tr></thead><tbody>';
-  for(let i=0;i<max;i++) {
-    const f = i < finalNumbers.length ? finalNumbers[i] : "";
-    const a = i < adopted.length ? adopted[i] : "";
-    const same = f === a;
-    if(!same) ok = false;
-    output += `<tr class="${same?"":"warn"}"><td>${i+1}</td><td>${f}</td><td>${a}</td><td>${same?"OK":"要確認"}</td></tr>`;
-  }
-  output += "</tbody></table></div>";
-  output += ok ? '<div class="resultOk">提出OK：完成日報と採用データが一致</div>' : '<div class="resultNg">要確認：完成日報と採用データにズレあり</div>';
-  $("finalResult").innerHTML = output;
-}
-function toggleReadme() {
-  const r = $("readme");
-  r.style.display = r.style.display === "block" ? "none" : "block";
-}
+
 function escapeHtml(value) {
   return String(value || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 }
+
 document.addEventListener("DOMContentLoaded", () => {
-  attachFileHandler("reportCam","report");
-  attachFileHandler("reportLib","report");
-  attachFileHandler("detailCam","detail");
-  attachFileHandler("detailLib","detail");
-  attachFileHandler("finalCam","final");
-  attachFileHandler("finalLib","final");
-  $("compareButton").addEventListener("click", compareRows);
-  $("addCash").addEventListener("click", () => addManualRow("cash"));
-  $("addReceivable").addEventListener("click", () => addManualRow("receivable"));
-  $("readmeButton").addEventListener("click", toggleReadme);
+  $("reportFile").addEventListener("change", e => handleFile(e.target.files[0], "日報"));
+  $("detailFile").addEventListener("change", e => handleFile(e.target.files[0], "明細"));
+  $("addCash").addEventListener("click", () => addRow("cash"));
+  $("addReceivable").addEventListener("click", () => addRow("receivable"));
+  $("readmeButton").addEventListener("click", () => {
+    const r = $("readme");
+    r.style.display = r.style.display === "block" ? "none" : "block";
+  });
 });
 </script>
 </body>
